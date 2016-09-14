@@ -1,0 +1,20 @@
+[files]
+mit_dump = in/kdc_dump.mit
+master_key = in/kdc_master_key
+heimdal_path = /usr/sbin
+hashes = out/user_hashes.json
+users_ldif = out/addusers.ldif
+newusers_ldif = out/newusers.ldif
+hashes_ldif = out/sethashes.ldif
+
+[opendirectory]
+dc = dc=mydirectory,dc=example,dc=org
+url = ldap://mydirectory
+username = adminuser
+password = SecretPassword
+
+[samba4]
+dc = dc=example,dc=org
+url = ldap://dc01
+username = Administrator
+password = SecretPassword

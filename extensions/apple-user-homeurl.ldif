@@ -1,0 +1,12 @@
+# apple-user-homeurl attribute definition
+dn: CN=apple-user-homeurl,CN=Schema,CN=Configuration,DC=physcip,DC=uni-stuttgart,DC=de
+changetype: add
+objectClass: top
+objectClass: attributeSchema
+cn: apple-user-homeurl
+description: home directory URL
+attributeID: 1.3.6.1.4.1.63.1000.1.1.1.1.6
+lDAPDisplayName: apple-user-homeurl
+attributeSyntax: 2.5.5.5
+isSingleValued: TRUE
+oMSyntax: 22

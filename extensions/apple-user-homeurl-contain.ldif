@@ -1,0 +1,5 @@
+# add apple-user-homeurl to mayContain property of User class
+dn: CN=User,CN=Schema,CN=Configuration,DC=physcip,DC=uni-stuttgart,DC=de
+changetype: modify
+add: mayContain
+mayContain: apple-user-homeurl

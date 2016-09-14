@@ -1,0 +1,5 @@
+od2samba4.conf
+in/*
+!in/README.md
+out/*
+!out/README.md
