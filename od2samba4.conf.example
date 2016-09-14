@@ -5,6 +5,8 @@ heimdal_path = /usr/sbin
 hashes = out/user_hashes.json
 users_ldif = out/addusers.ldif
 newusers_ldif = out/newusers.ldif
+groups_ldif = out/addgroups.ldif
+membership_script = out/setmembership.sh
 hashes_ldif = out/sethashes.ldif
 
 [opendirectory]
@@ -18,3 +20,4 @@ dc = dc=example,dc=org
 url = ldap://dc01
 username = Administrator
 password = SecretPassword
+group_nis_domain = example

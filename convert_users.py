@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 
-# Convert Open Directory database to LDIF for Samba4 import.
+# Convert Open Directory user database to LDIF for Samba4 import.
 # It is not possible to just upload users to the Samba4 directory,
 # since we want to keep objectGUIDs. Setting objectGUIDs of users
 # is only allowed during provisioning with `ldbadd --relax` though.
@@ -43,7 +43,7 @@ USERATTRIBUTES = [
 	"loginShell",			# Login Shell, e.g. /bin/bash
 	"gidNumber",			# Primary Group Number
 	"uidNumber",			# UID Number
-	"mail",				# E-Mail address @physcip, multiple accounts possible!
+	"mail",				# E-Mail address, only first entry will be used
 	"apple-generateduid",		# Becomes objectGUID in samba4
 	"apple-user-mailattribute"	# XML format, forwarding address is extracted
 ]
@@ -120,5 +120,5 @@ for user in users_od:
 	outfile.unparse(dn, user)
 
 print("Extracted " + str(count) + " user account details into " + outfile_name +  ".")
-print("Copy this file to the Samba4 server and import users by executing")
+print("Copy this file to the samba4 server and import users by executing")
 print("# ldbadd -H /var/lib/samba/private/sam.ldb " + outfile_name + " --relax")
