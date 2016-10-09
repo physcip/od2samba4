@@ -5,7 +5,7 @@
 # since we want to keep objectGUIDs. Setting objectGUIDs of users
 # is only allowed during provisioning with `ldbadd --relax` though.
 
-from ConfigParser import SafeConfigParser
+from ConfigParser import RawConfigParser
 from optparse import OptionParser
 import xml.etree.ElementTree
 import ldap
@@ -17,7 +17,7 @@ parser.add_option("-n", "--new", action="store_true", default = False, help = "O
 (cmdline_opts, args) = parser.parse_args()
 
 # Parse configuration
-config = SafeConfigParser()
+config = RawConfigParser()
 config.read("od2samba4.conf")
 
 od_password = config.get("opendirectory", "password")

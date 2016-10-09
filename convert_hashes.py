@@ -6,14 +6,14 @@
 # are not found in the hashes file will remain unchanged.
 
 from __future__ import print_function
-from ConfigParser import SafeConfigParser
+from ConfigParser import RawConfigParser
 import ldap
 import json
 import math
 import time
 
 # Parse configuration
-config = SafeConfigParser()
+config = RawConfigParser()
 config.read("od2samba4.conf")
 
 samba4_dc = config.get("samba4", "dc")

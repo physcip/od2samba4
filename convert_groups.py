@@ -4,14 +4,14 @@
 # Generates a script that establishes group membership for all users.
 
 from __future__ import print_function
-from ConfigParser import SafeConfigParser
+from ConfigParser import RawConfigParser
 import ldap
 import ldif
 import stat
 import os
 
 # Parse configuration
-config = SafeConfigParser()
+config = RawConfigParser()
 config.read("od2samba4.conf")
 
 od_password = config.get("opendirectory", "password")

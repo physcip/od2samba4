@@ -12,14 +12,14 @@
 # `heimdal_path` in `od2samba4.conf` to the directory where the executables
 # `hprop` and `hpropd` reside.
 
-from ConfigParser import SafeConfigParser
+from ConfigParser import RawConfigParser
 import subprocess
 import string
 import json
 import os
 
 # Parse configuration
-config = SafeConfigParser()
+config = RawConfigParser()
 config.read("od2samba4.conf")
 
 mit_dump = config.get("files", "mit_dump")

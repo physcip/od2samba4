@@ -14,10 +14,13 @@ dc = dc=mydirectory,dc=example,dc=org
 url = ldap://mydirectory
 username = adminuser
 password = SecretPassword
+host = mydirectory
+sshuser = root
+sshpass = SecretPassword
 
 [samba4]
 dc = dc=example,dc=org
-url = ldap://dc01
+url = ldaps://dc01
 username = Administrator
 password = SecretPassword
 group_nis_domain = example
