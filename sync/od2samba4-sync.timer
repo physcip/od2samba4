@@ -1,0 +1,10 @@
+[Unit]
+Description=Sychronize OD database to Samba4 every 15 Minutes
+
+[Timer]
+OnBootSec=5min
+OnActiveSec=1min
+OnCalendar=*:0,15,30,45
+
+[Install]
+WantedBy=timers.target

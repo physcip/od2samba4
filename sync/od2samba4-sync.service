@@ -1,0 +1,6 @@
+[Unit]
+Description=Sychronize OD database to Samba4
+After=network.target
+
+[Service]
+ExecStart=/root/od2samba4/sync/sync.sh
