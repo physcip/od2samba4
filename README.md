@@ -28,6 +28,8 @@ Follow the [official guide for provisioning a Samba4 Domain Controller](https://
 ### Step 3 - Install Schema Extensions
 od2samba4 migrates the Open Directory attribute `apple-user-homeurl` to Samba4. Since that is not a default Active Directory attribute, it has to be manually added by installing schema extensions.
 
+Make sure to *adapt the DN* (`dn: ` line in `extensions/apple-user-homeurl.ldif`, `extensions/apple-user-homeurl-contain.ldif`) in the schema extension files to your specific domain setup!
+
 The following commands install the schema extensions from the `extensions` folder. Samba4 must not be running while the schema is modified. 
 ```bash
 systemctl stop samba-ad-dc
