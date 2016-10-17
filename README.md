@@ -63,6 +63,16 @@ od2samba4 needs information on how to contact both Open Directory and Samba4 as 
 	* `password`: Password for AD server
 	* `group_nis_domain`: `msSFU30NisDomain` attribute of groups, usually the lowercase domain name
 
+#### Migrate Groups
+`convert_groups.py` will generate an LDIF file with all Open Directory groups for Samba4 import. Group migration is only meant to be done once (there is no option to only migrate new groups) and *has to happen before migrating users*. This is because users need to know their primary group's `objectSid`, which is generated during import, in order to determine their `primaryGroupID` value, which establishes **primary** group membership.
+
+Groups can then be imported using
+```bash
+ldbadd -H /var/lib/samba/private/sam.ldb <group ldif file> --relax
+```
+
+Additionally, a script that establishes **secondary** group membership is created. This script has to be executed *after* users have been imported!
+
 #### Migrate Users
 `convert_users.py` will generate an LDIF file with all Open Directory users for Samba4 import. You may also choose to only extract users that have not already been migrated ("new users") using `convert_users.py --new`.
 
@@ -83,15 +93,11 @@ ldbmodify <hashes ldif file> -H /var/lib/samba/private/sam.ldb --controls=local_
 ```
 The control (`1.3.6.1.4.1.7165.4.3.12 = DSDB_CONTROL_BYPASS_PASSWORD_HASH_OID`, which was intended to be used for Samba3 import) will make sure, to override a check that prevents ldbmodify to directly change password hashes.
 
-#### Migrate Groups
-`convert_groups.py` will generate an LDIF file with all Open Directory groups for Samba4 import. Group migration is only meant to be done once (there is no option to only migrate new groups).
-
-Groups can then be imported using
+#### Establish secondary group membership
+`convert_groups.py` from step "Migrate Groups" will have generated a script that establishes secondary group membership. Primary group membership was already established by `convert_users.py`, by setting the correct `primaryGroupID` and `gidNumber`. By default, the script is called `out/setmembership.sh`. It calls `samba-tool group addmembers`, which adds `member` and `memberUid` attributes to the group:
 ```bash
-ldbadd -H /var/lib/samba/private/sam.ldb <group ldif file> --relax
+./out/setmembership.sh
 ```
-
-Additionally, a script that establishes group membership is created. By executing this script, `member` and `memberUid` attributes are added to the group and `memberOf` attributes are added to group members.
 
 ### Step 6 - Simultaneous OD and Samba4 Operation with Automatic Import
 If you want to test Samba4 for some time before making the final switch while synchronizing password changes and new users from OD over to the Samba4 server, see `sync/README.md` for information on how to accomplish that.

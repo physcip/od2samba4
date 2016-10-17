@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 
 # Convert Open Directory groups to LDIF for Samba4 import.
-# Generates a script that establishes group membership for all users.
+# Generates a script that establishes secondary group membership for all users.
 
 from __future__ import print_function
 from ConfigParser import RawConfigParser
@@ -29,7 +29,7 @@ GROUPATTRIBUTES = [
 	"cn",				# Group name (short version)
 	"apple-group-realname",		# Group name (long, human-readable version), becomes description in samba4
 	"apple-generateduid",		# Becomes objectGUID in samba4
-	"memberUid"			# Will be used to generate membership-establishing script and kept for samba4 import
+	"memberUid"			# Will be used to generate secondary membership-establishing script and kept for samba4 import
 ]
 
 # Use certificates only for encryption, not authentication (self-signed)
@@ -68,11 +68,11 @@ for group in od_groups:
 		group["description"] = group["apple-group-realname"]
 		del group["apple-group-realname"]
 
-	# Process `memberUid` entries: One group usually has several memberUid entries. In samba4,
-	# groups will use the `member` attribute to specify all member as DNs. The members of a group
+	# Process `memberUid` entries: One group usually has several memberUid entries. In Samba4,
+	# groups use the `member` attribute to specify all member as DNs. The members of a group
 	# will also get a `memberOf` attribute. Instead of modifying all users and converting user UIDs
 	# to DNs, the simpler solution is to let samba-tool take care of that by generating a shell script
-	# that establishes group membership. We can keep memberUid and also add that to samba4.
+	# that establishes group membership. We can keep the memberUid attribute and also add that to Samba4.
 	if "memberUid" in group:
 		for uid in group["memberUid"]:
 			print("samba-tool group addmembers " + group["cn"][0] + " " + uid, file=outfile_script)
