@@ -1,4 +1,5 @@
 od2samba4.conf
+groups.json
 in/*
 !in/README.md
 out/*

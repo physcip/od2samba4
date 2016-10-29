@@ -46,8 +46,12 @@ samba-tool domain passwordsettings set --max-pwd-age=0
 ```
 
 ### Step 5 - Initial Migration of Users, Passwords and Groups
-#### od2samba4.conf Settings
-od2samba4 needs information on how to contact both Open Directory and Samba4 as well as information on where to find and store files. Samba4 server contact information is only used to read the directory (e.g. to find out which users haven't been migrated yet), od2samba4 won't write to the Samba4 directory. Configure od2samba4 by creating a copy of `od2samba4.conf.example` called `od2samba4.conf` and enter the following settings:
+#### `od2samba4.conf` Settings
+od2samba4 needs information on how to contact both Open Directory and Samba4 as well as information on where to find and store files. Samba4 server contact information is only used to read the directory (e.g. to find out which users haven't been migrated yet), od2samba4 won't write to the Samba4 directory. Copy the configuration file template using
+```bash
+cp od2samba4.conf.example od2samba4.conf
+```
+and enter the following settings:
 
 * `[files]` section:
 	* For details on input and output files, see `in/README.md` and `out/README.md` respectively
@@ -65,6 +69,32 @@ od2samba4 needs information on how to contact both Open Directory and Samba4 as 
 	* `password`: Password for AD server
 	* `group_nis_domain`: `msSFU30NisDomain` attribute of groups, usually the lowercase domain name
 
+#### `groups.json` Settings
+od2samba4 needs to know which groups you want to migrate and how you want to accomplish the migration. The configuration file `groups.json` is used for this purpose. Get started using the sample file:
+```bash
+cp groups.json.example groups.json
+```
+
+This JSON file must have the following structure
+```json
+{
+	"odname" : {
+		"target" : "sambaname",
+		"type" : "migrate" OR "merge"
+	},
+	...
+}
+```
+where
+
+* `odname` is the CN of the group on the Open Directory Server
+* `sambaname` is the CN the group will be given after getting migrated to Samba4
+* `type` can either be:
+	* `migrate`: A new group called `sambaname` will be created in the Samba4 Active Directory; `gidNumber`, `objectGUID` (from `apple-generateduid`) and other attributes will be copied
+	* `merge`: An existing group called `sambaname` is modified to contain `gidNumber` and other neccessary properties. The predetermined `objectGUID` in Samba4 won't be changed.
+
+od2samba4 will *only* migrate groups listed in `groups.json`, so make sure to migrate at least the primary groups of your users.
+
 #### Migrate Groups
 `convert_groups.py` will generate an LDIF file with all Open Directory groups for Samba4 import. Group migration is only meant to be done once (there is no option to only migrate new groups) and *has to happen before migrating users*. This is because users need to know their primary group's `objectSid`, which is generated during import, in order to determine their `primaryGroupID` value, which establishes **primary** group membership.
 
@@ -73,7 +103,7 @@ Groups can then be imported using
 ldbadd -H /var/lib/samba/private/sam.ldb <group ldif file> --relax
 ```
 
-Additionally, a script that establishes **secondary** group membership is created. This script has to be executed *after* users have been imported!
+Additionally, a script that establishes **secondary** group membership and parent-children relationships between groups (nested groups) is created. This script has to be executed *after* users have been imported!
 
 #### Migrate Users
 `convert_users.py` will generate an LDIF file with all Open Directory users for Samba4 import. You may also choose to only extract users that have not already been migrated ("new users") using `convert_users.py --new`.
@@ -100,6 +130,8 @@ The control (`1.3.6.1.4.1.7165.4.3.12 = DSDB_CONTROL_BYPASS_PASSWORD_HASH_OID`, 
 ```bash
 ./out/setmembership.sh
 ```
+
+This script also takes care of processing nested groups, if both parent and child group are migrated to Samba4.
 
 ### Step 6 - Simultaneous OD and Samba4 Operation with Automatic Import
 If you want to test Samba4 for some time before making the final switch while synchronizing password changes and new users from OD over to the Samba4 server, see `sync/README.md` for information on how to accomplish that.

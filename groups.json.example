@@ -1,0 +1,18 @@
+{
+	"mygroup" : {
+		"target" : "mygroup",
+		"type" : "migrate"
+	},
+	"foobar" : {
+		"target" : "barfoo",
+		"type" : "migrate"
+	},
+	"admin" : {
+		"target" : "Domain Admins",
+		"type" : "merge"
+	},
+	"staff" : {
+		"target" : "Domain Users",
+		"type" : "merge"
+	}
+}
