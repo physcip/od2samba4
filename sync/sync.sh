@@ -44,6 +44,6 @@ echo "Adding new users"
 ldbadd -H /var/lib/samba/private/sam.ldb $CWD/../$(read_od2s4_config files newusers_ldif) --relax
 echo "Updating hashes"
 ldbmodify $CWD/../$(read_od2s4_config files hashes_ldif) -H /var/lib/samba/private/sam.ldb --controls=local_oid:1.3.6.1.4.1.7165.4.3.12:0
-echo "Updating group memberships"
+echo "Updating secondary group memberships"
 $CWD/../$(read_od2s4_config files membership_script)
 

@@ -108,16 +108,18 @@ if cmdline_opts.new:
 def extractForwardingAddress(xmlstring):
 	root = xml.etree.ElementTree.fromstring(xmlstring)
 	for key, child in enumerate(root):
-		if child.text == "kAutoForwardValue":
-			return root[key + 1].text
+		if child.text == "kAutoForwardValue" and not (root[key + 1].text is None):
+			return root[key + 1].text.encode("utf-8")
 	return False
 
 # Generate LDIF for import into Samba4 via ldbadd
 outfile = ldif.LDIFWriter(open(outfile_name, "wb"))
 count = 0
 for user in users_od:
-	count += 1
-	dn = "CN=" + user["cn"][0] + ",CN=Users," + samba4_dc
+	# Use OD's UID as CN and use OD's CN as displayName
+	dn = "CN=" + user["uid"][0] + ",CN=Users," + samba4_dc
+	user["displayName"] = [user["cn"][0]]
+	user["cn"] = [user["uid"][0]]
 	user["objectclass"] = ["top", "user", "organizationalPerson", "person", "posixAccount"]
 	user["sAMAccountName"] = [user["uid"][0]]
 	user["primaryGroupID"] = [str(gid2rid[user["gidNumber"][0]])]
@@ -136,6 +138,7 @@ for user in users_od:
 		del user["apple-user-mailattribute"]
 
 	outfile.unparse(dn, user)
+	count += 1
 
 print("Extracted " + str(count) + " user account details into " + outfile_name +  ".")
 print("Copy this file to the samba4 server and import users by executing")
