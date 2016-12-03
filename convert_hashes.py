@@ -89,13 +89,19 @@ for user in userlist:
 		addModify(user[1], "unicodePwd", userprops["type23"].decode("hex").encode("base64").replace("\n", ""), True)
 
 		# Convert type 1, 3, 17, 18 hashes to supplementalCredentials blob using kerberos2supplementalCredentials.py utility
-		# If hash types 1 and/or 3 are not provided, create a new "0" hash. This is only to make sure samba accepts the
-		# supplementalCredentials blob when importing. Authentication with hashes 1, 3 will be disabled by setting
-		# msDS-SupportedEncryptionTypes anyways.
+		# If hash types 1 and/or 3 are not provided, create a new "0" hash. This is only to make sure Samba accepts the
+		# supplementalCredentials blob when importing. supportedEncryptionTypes will be written to msDS-SupportedEncryptionTypes.
+		supportedEncryptionTypes = 0b00011100
+
 		if not "type1" in userprops:
 			userprops["type1"] = "0" * 16
+		else:
+			supportedEncryptionTypes |= 0b01
+
 		if not "type3" in userprops:
 			userprops["type3"] = "0" * 16
+		else:
+			supportedEncryptionTypes |= 0b10
 
 		if len(set(userprops.keys()) & {"type1", "type3", "type17", "type18"}) != 4:
 			print("User " + user[0] + ": Not enough hashes for supplementalCredentials, ignoring supplementalCredentials")
@@ -108,10 +114,10 @@ for user in userlist:
 				sys.exit("kerberos2supplementalCredentials.py error:\n" + "".join(supplementalCredentials))
 			addModify(user[1], "supplementalCredentials", supplementalCredentials[0].replace("\n", ""), True)
 
-		# Disable authentication with ancient hash formats. Only authentication with arcfour-hmac (23), aes128-cts-hmac-sha1-96 (17) and aes256-cts-hmac-sha1-96 (18)
-		# will be supported. This shouldn't be an issue since there really is no need to authenticate with these insecure hashes anymore.
-		# Older systems will still be supported by the arcfour-hmac hashes. des-cbc-md5 (3) and des-cbc-crc (1) will be disabled.
-		addModify(user[1], "msDS-SupportedEncryptionTypes", str(0b00011100))
+		# Authentication with arcfour-hmac (23), aes128-cts-hmac-sha1-96 (17) and aes256-cts-hmac-sha1-96 (18)
+		# will always be enabled. Only enable authentication with des-cbc-md5 (3) and des-cbc-crc (1) if a valid hash
+		# was found in the kerberos dump.
+		addModify(user[1], "msDS-SupportedEncryptionTypes", str(supportedEncryptionTypes))
 
 		# Change pwdLastSet to current time. Technically, any timestamp != 0 would work if password policy is set to no expiry.
 		# The default value 0, however, will cause samba4 to ask for password renewal (NT_STATUS_PASSWORD_MUST_CHANGE).
