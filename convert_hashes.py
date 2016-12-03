@@ -7,10 +7,16 @@
 
 from __future__ import print_function
 from ConfigParser import RawConfigParser
+import subprocess
+import string
 import ldap
 import json
 import math
 import time
+import sys
+import os
+
+k2sc_path = os.path.dirname(os.path.realpath(__file__))
 
 # Parse configuration
 config = RawConfigParser()
@@ -24,7 +30,7 @@ hashes_filename = config.get("files", "hashes")
 outfile_filename = config.get("files", "hashes_ldif")
 
 # Parse username / hash directory from JSON
-hashes = json.loads(open(hashes_filename, "r").read())
+injson = json.loads(open(hashes_filename, "r").read())
 
 # Use certificates only for encryption, not authentication (self-signed)
 ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_ALLOW)
@@ -55,27 +61,66 @@ def addModify(dn, key, value, base64=False):
 	print("dn: " + dn, file=outfile)
 	print("changetype: modify", file=outfile)
 	print("replace: " + key, file=outfile)
+
+	# base64 is specified by double colon (::) in LDIF
 	print(key + (":: " if base64 else ": ") + value, file=outfile)
 	print(file=outfile)
 
 for user in userlist:
-	if not user[0] in hashes:
-		print("Hash for user " + user[0] + " was not found, ignoring.")
+	if not user[0] in injson:
+		print("No hashes for user " + user[0] + " were found, ignoring.")
 	else:
-		count += 1
+		userprops = injson[user[0]]
 
-		# base64 is specified by double colon (::) in LDIF
-		addModify(user[1], "unicodePwd", hashes[user[0]], True)
-
+		# Enable or disable account according to HDBFlags in Heimdal dump
+		# This reads the "invalid" flag of HDBflags, see lib/hdb/hdb.asn1 in Heimdal.
+		# If this bit is set to "1", the account will stay disabled.
+		#
 		# userAccountControl = 512 means UF_NORMAL_ACCOUNT
+		# userAccountControl = 514 means UF_NORMAL_ACCOUNT and UF_ACCOUNT_DISABLE
 		# After Samba4 import, userAccountControl defaults to 548 which means the account is disabled and no password is required.
-		# We only enable the account now, so that the system is not vulnerable before password hash migration.
-		addModify(user[1], "userAccountControl", "512")
+		# If the user was enabled in Open Directory, we enable the account only now, so that the system is not vulnerable before password hash migration.
+		# If the user was disabled in Open Directory (in the kerberos dump), we set the account to disabled, but migrate all hashes.
+		flags_bin = "{0:032b}".format(int(userprops["flags"]))
+		account_disabled = (flags_bin[len(flags_bin) - 8] == "1")
+		addModify(user[1], "userAccountControl", "514" if account_disabled else "512")
+
+		# Add arcfour hash as "unicodePwd" attribute
+		addModify(user[1], "unicodePwd", userprops["type23"].decode("hex").encode("base64").replace("\n", ""), True)
+
+		# Convert type 1, 3, 17, 18 hashes to supplementalCredentials blob using kerberos2supplementalCredentials.py utility
+		# If hash types 1 and/or 3 are not provided, create a new "0" hash. This is only to make sure samba accepts the
+		# supplementalCredentials blob when importing. Authentication with hashes 1, 3 will be disabled by setting
+		# msDS-SupportedEncryptionTypes anyways.
+		if not "type1" in userprops:
+			userprops["type1"] = "0" * 16
+		if not "type3" in userprops:
+			userprops["type3"] = "0" * 16
+
+		if len(set(userprops.keys()) & {"type1", "type3", "type17", "type18"}) != 4:
+			print("User " + user[0] + ": Not enough hashes for supplementalCredentials, ignoring supplementalCredentials")
+		else:
+			k2sc_params = " ".join(["--" + e + " " + userprops[e] for e in set(userprops.keys()) & {"type1", "type3", "type17", "type18"}])
+			k2sc_popen = subprocess.Popen([k2sc_path + os.sep + "kerberos2supplementalCredentials.py --base64 " + userprops["salt"] + " " + k2sc_params],
+					shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+			supplementalCredentials = k2sc_popen.stdout.readlines()
+			if (not all((d in string.ascii_letters or d in string.digits or d in "+/=\n") for d in supplementalCredentials[0])):
+				sys.exit("kerberos2supplementalCredentials.py error:\n" + "".join(supplementalCredentials))
+			addModify(user[1], "supplementalCredentials", supplementalCredentials[0].replace("\n", ""), True)
+
+		# Disable authentication with ancient hash formats. Only authentication with arcfour-hmac (23), aes128-cts-hmac-sha1-96 (17) and aes256-cts-hmac-sha1-96 (18)
+		# will be supported. This shouldn't be an issue since there really is no need to authenticate with these insecure hashes anymore.
+		# Older systems will still be supported by the arcfour-hmac hashes. des-cbc-md5 (3) and des-cbc-crc (1) will be disabled.
+		addModify(user[1], "msDS-SupportedEncryptionTypes", str(0b00011100))
 
 		# Change pwdLastSet to current time. Technically, any timestamp != 0 would work if password policy is set to no expiry.
 		# The default value 0, however, will cause samba4 to ask for password renewal (NT_STATUS_PASSWORD_MUST_CHANGE).
 		# To set at least some meaningful value (since OD doesn't store pwdLastSet), set the current date.
 		addModify(user[1], "pwdLastSet", pwdLastSetTime)
+
+		count += 1
+		if count % 50 == 0:
+			print("Number of converted users: " + str(count))
 
 outfile.close()
 

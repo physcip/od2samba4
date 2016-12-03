@@ -34,27 +34,42 @@ users = conv.stdout.readlines()
 
 # Parse heimdal output, convert from hex to base64, write output file
 count = 0
-hashes = {}
+outjson = {}
 for user in users:
 	attribs = string.split(user, " ")
-	username = string.split(attribs[0], "@")[0]
+	userprops = {}
+
+	# The following types of hashes will be extracted:
+	# des-cbc-crc (type 1), des-cbc-md5 (type 3), aes128-cts-hmac-sha1-96 (type 17), aes256-cts-hmac-sha1-96 (type 18), arcfour-hmac-md5 (type 23)
+	# types 1, 3, 17, 18 will be used for the "supplementalCredentials" attribute,
+	# type 23 will be used for the "unicodePwd" attribute
+	# hashlengths stores which hashes to migrate and the length of those hashes in hexadecimal form,
+	# which will be checked to make sure the hash matches
+	hashlengths = {"1" : 16, "3" : 16, "17" : 32, "18" : 64, "23" : 32}
+
 	keys = string.split(attribs[1], ":")
-	arcfour_hex = ""
-
-	# arcfour-hmac-md5 is entry type 23
 	for i, etype in enumerate(keys):
-		if (etype == "23"):
-			arcfour_hex = keys[i + 1]
-			break
+		if etype in hashlengths:
+			if len(keys[i + 1]) == hashlengths[etype]:
+				userprops["type" + etype] = keys[i + 1]
 
-	if (arcfour_hex == ""):
-		print("Hash for user " + username + " was not found, ignoring user.")
+	# Change this if you don't use the NORMAL salt (see kerberos2supplementalCredentials.py for explanation)
+	principal = string.split(attribs[0], "@")
+	salt = principal[1] + principal[0]
+	username = principal[0]
+	flags = attribs[9]
+
+	if not userprops:
+		print("No hashes for user " + username + " were not found, ignoring user.")
 	else:
+		userprops["salt"] = salt
+		userprops["flags"] = attribs[9]
+
+		outjson[username] = userprops
 		count += 1
-		hashes[username] = arcfour_hex.decode("hex").encode("base64").replace("\n", "")
 
 outfile = open(outfile_name, "w")
-outfile.write(json.dumps(hashes, indent = 4))
+outfile.write(json.dumps(outjson, indent = 4))
 outfile.close()
 
 print(str(count) + " hashes were succesfully extracted and written to " + outfile_name + ".")
