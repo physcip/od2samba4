@@ -94,13 +94,14 @@ newer_keys_blob_unpacked.ctr = newer_keys_ctr
 newer_keys_blob = ndr_pack(newer_keys_blob_unpacked)
 
 newer_keys_package = drsblobs.supplementalCredentialsPackage()
-newer_keys_package.data = binascii.hexlify(newer_keys_blob)
+newer_keys_package_hex = binascii.hexlify(newer_keys_blob).upper()
+newer_keys_package.data = newer_keys_package_hex
 newer_keys_package.data_len = len(newer_keys_package.data)
 newer_keys_package.name = "Primary:Kerberos-Newer-Keys"
 newer_keys_package.name_len = len(newer_keys_package.name)
 newer_keys_package.reserved = 1 # see note about this property above
 
-properties["Primary:Kerberos-Newer-Keys"] = newer_keys_package
+properties["Kerberos-Newer-Keys"] = newer_keys_package
 
 # Store type 1 and 3 hashes in Primary:Kerberos
 # https://msdn.microsoft.com/en-us/library/cc245503.aspx
@@ -128,13 +129,14 @@ if (len(normal_keys_list) > 0):
 	normal_keys_blob = ndr_pack(normal_keys_blob_unpacked)
 
 	normal_keys_package = drsblobs.supplementalCredentialsPackage()
-	normal_keys_package.data = binascii.hexlify(normal_keys_blob)
+	normal_keys_package_hex = binascii.hexlify(normal_keys_blob).upper()
+	normal_keys_package.data = normal_keys_package_hex
 	normal_keys_package.data_len = len(normal_keys_package.data)
 	normal_keys_package.name = "Primary:Kerberos"
 	normal_keys_package.name_len = len(normal_keys_package.name)
 	normal_keys_package.reserved = 1 # see note about this property above
 
-	properties["Primary:Kerberos"] = normal_keys_package
+	properties["Kerberos"] = normal_keys_package
 
 # Build packages property Blob
 # https://msdn.microsoft.com/en-us/library/cc245678.aspx
