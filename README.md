@@ -67,7 +67,8 @@ and enter the following settings:
 	* `url`: Where to reach your Samba4 server via LDAP (or LDAPS) protocol
 	* `username`: Username for AD server
 	* `password`: Password for AD server
-	* `group_nis_domain`: `msSFU30NisDomain` attribute of groups, usually the lowercase domain name
+	* `nis_domain`: `msSFU30NisDomain` attribute of users and groups, usually the lowercase domain name
+	* `upn_domain`: UPN suffix, domain part of userPrincipalName, usually the domain components of the DN in DNS format
 
 #### `groups.json` Settings
 od2samba4 needs to know which groups you want to migrate and how you want to accomplish the migration. The configuration file `groups.json` is used for this purpose. Get started using the sample file:
@@ -96,7 +97,7 @@ where
 od2samba4 will *only* migrate groups listed in `groups.json`, so make sure to migrate at least the primary groups of your users.
 
 #### Migrate Groups
-`convert_groups.py` will generate an LDIF file with all Open Directory groups for Samba4 import. Group migration is only meant to be done once (there is no option to only migrate new groups) and *has to happen before migrating users*. This is because users need to know their primary group's `objectSid`, which is generated during import, in order to determine their `primaryGroupID` value, which establishes **primary** group membership.
+`convert_groups.py -a` will generate an LDIF file with all Open Directory groups for Samba4 import. Group migration is only meant to be done once (there is no option to only migrate new groups) and *has to happen before migrating users*. This is because users need to know their primary group's `objectSid`, which is generated during import, in order to determine their `primaryGroupID` value, which establishes **primary** group membership. It is recommended to call `convert_groups.py` with the `-a` (= `--amend-nis-props`) command line flag which makes sure preexisting Samba groups will also be equipped with a NIS Domain, NIS Name and gidNumber matching the group's RID. In that case, Samba4 has to be running while executing `convert_groups.py`.
 
 Groups can then be imported using
 ```bash
@@ -125,8 +126,8 @@ ldbmodify <hashes ldif file> -H /var/lib/samba/private/sam.ldb --controls=local_
 ```
 The control (`1.3.6.1.4.1.7165.4.3.12 = DSDB_CONTROL_BYPASS_PASSWORD_HASH_OID`, which was intended to be used for Samba3 import) will make sure, to override a check that prevents ldbmodify to directly change password hashes.
 
-#### Establish secondary group membership
-`convert_groups.py` from step "Migrate Groups" will have generated a script that establishes secondary group membership. Primary group membership was already established by `convert_users.py`, by setting the correct `primaryGroupID` and `gidNumber`. By default, the script is called `out/setmembership.sh`. It calls `samba-tool group addmembers`, which adds `member` and `memberUid` attributes to the group:
+#### Establish secondary group and group-in-group membership
+`convert_groups.py` from step "Migrate Groups" will have generated a script that establishes secondary group membership for users and groups. Primary group membership was already established by `convert_users.py`, by setting the correct `primaryGroupID` and `gidNumber`. By default, the script is called `out/setmembership.sh`. It calls `samba-tool group addmembers`, which adds `member` and `memberUid` attributes to the group:
 ```bash
 ./out/setmembership.sh
 ```

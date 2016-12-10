@@ -31,6 +31,8 @@ samba4_dc = config.get("samba4", "dc")
 samba4_url = config.get("samba4", "url")
 samba4_username = config.get("samba4", "username")
 samba4_password = config.get("samba4", "password")
+samba4_upn_realm = config.get("samba4", "upn_realm")
+nis_domain = config.get("samba4", "nis_domain")
 
 outfile_name = (outfile_new_name if cmdline_opts.new else outfile_all_name)
 
@@ -123,6 +125,9 @@ for user in users_od:
 	user["objectclass"] = ["top", "user", "organizationalPerson", "person", "posixAccount"]
 	user["sAMAccountName"] = [user["uid"][0]]
 	user["primaryGroupID"] = [str(gid2rid[user["gidNumber"][0]])]
+	user["userPrincipalName"] = [user["uid"][0] + "@" + samba4_upn_realm]
+	user["msSFU30Name"] = [user["uid"][0]]
+	user["msSFU30NisDomain"] = [nis_domain]
 
 	# Keep `apple-generateduid` from OD, rename to `objectGUID`
 	user["objectGUID"] = [user["apple-generateduid"][0]]
@@ -136,6 +141,12 @@ for user in users_od:
 		user["mail"] = [extractForwardingAddress(user["apple-user-mailattribute"][0])]
 	if "apple-user-mailattribute" in user:
 		del user["apple-user-mailattribute"]
+
+	# Rename "homeDirectory" to "unixHomeDirectory"
+	user["unixHomeDirectory"] = [user["homeDirectory"][0]]
+
+	# Only keep first UID attribute, discard others
+	user["uid"] = [user["uid"][0]]
 
 	outfile.unparse(dn, user)
 	count += 1

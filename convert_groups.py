@@ -5,11 +5,18 @@
 
 from __future__ import print_function
 from ConfigParser import RawConfigParser
+from optparse import OptionParser
+import struct
 import ldap
 import ldif
 import stat
 import json
 import os
+
+# Parse command line options
+parser = OptionParser()
+parser.add_option("-a", "--amend-nis-props", action="store_true", default = False, help = "Amend NIS Domain, NIS Name and gidNumber attribute to existing AD system groups")
+(cmdline_opts, args) = parser.parse_args()
 
 # Parse configuration
 config = RawConfigParser()
@@ -21,8 +28,11 @@ outfile_script_name = config.get("files", "membership_script")
 od_username = config.get("opendirectory", "username")
 od_url = config.get("opendirectory", "url")
 od_dc = config.get("opendirectory", "dc")
-nis_domain = config.get("samba4", "group_nis_domain")
 samba4_dc = config.get("samba4", "dc")
+samba4_url = config.get("samba4", "url")
+samba4_username = config.get("samba4", "username")
+samba4_password = config.get("samba4", "password")
+nis_domain = config.get("samba4", "nis_domain")
 
 # Parse JSON that defines what to do with groups (migrate or merge)
 groupactions = json.loads(open("groups.json", "r").read())
@@ -40,11 +50,27 @@ GROUPATTRIBUTES = [
 # Use certificates only for encryption, not authentication (self-signed)
 ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_ALLOW)
 
-# Connect to open directory
+# Connect to Open Directory
 print("Connecting to Open Directory server")
 od = ldap.initialize(od_url)
 od.simple_bind_s("uid=" + od_username + ",cn=users," + od_dc, od_password)
 od_results = od.search_s("cn=groups," + od_dc, ldap.SCOPE_SUBTREE, "(objectclass=posixGroup)", GROUPATTRIBUTES)
+
+# If command line option -a / --amend-nis-props is used, amend existing samba groups with NIS Domain, NIS Name and a gidNumber matching
+# the group's RID (= last Block of objectSid = number used for primaryGroupID). Connect to Samba4 server to retrieve a list of existing groups.
+samba4_sysgroups = {}
+if cmdline_opts.amend_nis_props:
+	print("Connecting to Samba4 server")
+	samba = ldap.initialize(samba4_url)
+	samba.set_option(ldap.OPT_REFERRALS, 0)
+	samba.start_tls_s()
+	samba.simple_bind_s("cn=" + samba4_username + ",cn=Users," + samba4_dc, samba4_password)
+
+	samba_results = samba.search_s("cn=Users," + samba4_dc, ldap.SCOPE_SUBTREE, "(objectclass=group)", ["cn", "objectSid"])
+	groupslist = [g[1] for g in samba_results]
+	for sysgroup in groupslist:
+		samba4_sysgroups[sysgroup["cn"][0]] = struct.unpack("<i", sysgroup["objectSid"][0][-4:])[0]
+	print("Retrieved list of " + str(len(groupslist)) + " existing groups from Samba4")
 
 # Clean search results: Extract attributes from [(DN, attributes)] list od_results
 # Delete all groups that are not going to be migrated / merged from list
@@ -62,7 +88,7 @@ def write_replace(fd, key, value):
 outfile_ldif = open(outfile_ldif_name, "wb")
 outfile_script = open(outfile_script_name, "w")
 print("#!/bin/bash", file = outfile_script)
-count = 0
+od_count = 0
 for group in od_groups:
 	if not group["cn"][0] in groupactions:
 		continue
@@ -113,6 +139,8 @@ for group in od_groups:
 		print("objectclass: group", file = outfile_ldif)
 		print("gidNumber: " + group["gidNumber"][0], file = outfile_ldif)
 		print("sAMAccountName: " + target, file = outfile_ldif)
+		print("msSFU30Name: " + target, file = outfile_ldif)
+		print("msSFU30NisDomain: " + nis_domain, file = outfile_ldif)
 		if "apple-group-realname" in group:
 			print("description: " + group["apple-group-realname"][0], file=outfile_ldif)
 
@@ -122,15 +150,37 @@ for group in od_groups:
 		print(group["cn"][0] + ": Invalid group action type: " + actiontype)
 		quit()
 
-	print(file=outfile_ldif)
-	count += 1
+	print(file = outfile_ldif)
+	od_count += 1
+
+# If -a / --amend-nis-props was specified (otherwise samba4_sysgroups is empty):
+# Add gidNumber and NIS properties to all preexisting Samba4 groups, ignore groups that are marked for
+# migration or merger in groups.json input file (group_is_manual is set in this case)
+sysgroup_count = 0
+for sysgroup_cn, sysgroup_rid in samba4_sysgroups.iteritems():
+	group_is_manual = False
+
+	for odgroup, groupprops in groupactions.iteritems():
+		if groupprops["target"] == sysgroup_cn:
+			group_is_manual = True
+			continue
+
+	if not group_is_manual:
+		print("dn: CN=" + sysgroup_cn + ",CN=Users," + samba4_dc, file = outfile_ldif)
+		print("changetype: modify", file = outfile_ldif)
+		write_replace(outfile_ldif, "msSFU30Name", sysgroup_cn)
+		write_replace(outfile_ldif, "msSFU30NisDomain", nis_domain)
+		write_replace(outfile_ldif, "gidNumber", str(sysgroup_rid))
+		print(file = outfile_ldif)
+		sysgroup_count += 1
 
 outfile_ldif.close()
 outfile_script.close()
 os.chmod(outfile_script_name, os.stat(outfile_script_name).st_mode | stat.S_IEXEC)
 
-print("Extracted " + str(count) + " groups into " + outfile_ldif_name +  ".")
-print("Copy this file to the samba4 server and import users by executing")
+print("Extracted " + str(od_count) + " groups from Open Directory into " + outfile_ldif_name +  ".")
+print("Amended " + str(sysgroup_count) + " groups from Samba4 with NIS properties.")
+print("Copy this file to the samba4 server and import groups by executing")
 print("# ldbmodify -H /var/lib/samba/private/sam.ldb " + outfile_ldif_name + " --relax")
 print("Generated " + outfile_script_name + " for establishing group membership.")
 print("Copy this script to the samba4 server and apply memberships by executing it.")

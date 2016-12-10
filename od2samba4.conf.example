@@ -23,4 +23,5 @@ dc = dc=example,dc=org
 url = ldaps://dc01
 username = Administrator
 password = SecretPassword
-group_nis_domain = example
+nis_domain = example
+upn_realm = example.org
