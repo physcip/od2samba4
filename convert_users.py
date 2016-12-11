@@ -73,7 +73,7 @@ od_results = od.search_s("cn=users," + od_dc, ldap.SCOPE_SUBTREE, "(objectclass=
 users_all = [u[1] for u in od_results]
 users_od = []
 for user in users_all:
-	if user["uid"][0] != "root" and user["uid"][0] != "_ldap_replicator" and not user["uid"][0].startswith("vpn_"):
+	if user["uid"][0] != "root" and user["uid"][0] != "diradmin" and user["uid"][0] != "_ldap_replicator" and not user["uid"][0].startswith("vpn_"):
 		users_od.append(user)
 
 print("Retrieved user list with " + str(len(users_od)) + " user entries from Open Directory")
@@ -142,8 +142,9 @@ for user in users_od:
 	if "apple-user-mailattribute" in user:
 		del user["apple-user-mailattribute"]
 
-	# Rename "homeDirectory" to "unixHomeDirectory"
-	user["unixHomeDirectory"] = [user["homeDirectory"][0]]
+	# Rename "homeDirectory" to "unixHomeDirectory", but only create attribute if it contains a valid entry (starts with "/")
+	if user["homeDirectory"][0].startswith("/"):
+		user["unixHomeDirectory"] = [user["homeDirectory"][0]]
 	del user["homeDirectory"]
 
 	# Only keep first UID attribute, discard others
