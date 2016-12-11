@@ -144,6 +144,7 @@ for user in users_od:
 
 	# Rename "homeDirectory" to "unixHomeDirectory"
 	user["unixHomeDirectory"] = [user["homeDirectory"][0]]
+	del user["homeDirectory"]
 
 	# Only keep first UID attribute, discard others
 	user["uid"] = [user["uid"][0]]

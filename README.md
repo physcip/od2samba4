@@ -97,7 +97,7 @@ where
 od2samba4 will *only* migrate groups listed in `groups.json`, so make sure to migrate at least the primary groups of your users.
 
 #### Migrate Groups
-`convert_groups.py -a` will generate an LDIF file with all Open Directory groups for Samba4 import. Group migration is only meant to be done once (there is no option to only migrate new groups) and *has to happen before migrating users*. This is because users need to know their primary group's `objectSid`, which is generated during import, in order to determine their `primaryGroupID` value, which establishes **primary** group membership. It is recommended to call `convert_groups.py` with the `-a` (= `--amend-nis-props`) command line flag which makes sure preexisting Samba groups will also be equipped with a NIS Domain, NIS Name and gidNumber matching the group's RID. In that case, Samba4 has to be running while executing `convert_groups.py`.
+`convert_groups.py -a` will generate an LDIF file with all Open Directory groups for Samba4 import. Group migration is only meant to be done once (there is no option to only migrate new groups) and *has to happen before migrating users*. This is because users need to know their primary group's `objectSid`, which is generated during import, in order to determine their `primaryGroupID` value, which establishes **primary** group membership. It is recommended to call `convert_groups.py` with the `-a` (= `--amend-nis-props`) command line flag which makes sure preexisting Samba groups will also be equipped with a NIS Domain, NIS Name and gidNumber matching the group's RID + 1e8. In that case, Samba4 has to be running while executing `convert_groups.py`.
 
 Groups can then be imported using
 ```bash

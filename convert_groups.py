@@ -57,7 +57,7 @@ od.simple_bind_s("uid=" + od_username + ",cn=users," + od_dc, od_password)
 od_results = od.search_s("cn=groups," + od_dc, ldap.SCOPE_SUBTREE, "(objectclass=posixGroup)", GROUPATTRIBUTES)
 
 # If command line option -a / --amend-nis-props is used, amend existing samba groups with NIS Domain, NIS Name and a gidNumber matching
-# the group's RID (= last Block of objectSid = number used for primaryGroupID). Connect to Samba4 server to retrieve a list of existing groups.
+# the group's RID + 1e8 (= last Block of objectSid = number used for primaryGroupID). Connect to Samba4 server to retrieve a list of existing groups.
 samba4_sysgroups = {}
 if cmdline_opts.amend_nis_props:
 	print("Connecting to Samba4 server")
@@ -170,7 +170,7 @@ for sysgroup_cn, sysgroup_rid in samba4_sysgroups.iteritems():
 		print("changetype: modify", file = outfile_ldif)
 		write_replace(outfile_ldif, "msSFU30Name", sysgroup_cn)
 		write_replace(outfile_ldif, "msSFU30NisDomain", nis_domain)
-		write_replace(outfile_ldif, "gidNumber", str(sysgroup_rid))
+		write_replace(outfile_ldif, "gidNumber", str(int(sysgroup_rid + 1e8)))
 		print(file = outfile_ldif)
 		sysgroup_count += 1
 
