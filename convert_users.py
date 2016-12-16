@@ -73,7 +73,8 @@ od_results = od.search_s("cn=users," + od_dc, ldap.SCOPE_SUBTREE, "(objectclass=
 users_all = [u[1] for u in od_results]
 users_od = []
 for user in users_all:
-	if user["uid"][0] != "root" and user["uid"][0] != "diradmin" and user["uid"][0] != "_ldap_replicator" and not user["uid"][0].startswith("vpn_"):
+	if (user["uid"][0] != "root" and user["uid"][0] != "diradmin" and user["uid"][0] != "_ldap_replicator"
+			and not user["uid"][0].startswith("vpn_") and not user["uid"][0].startswith("_krb_")):
 		users_od.append(user)
 
 print("Retrieved user list with " + str(len(users_od)) + " user entries from Open Directory")
