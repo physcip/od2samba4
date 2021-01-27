@@ -101,7 +101,7 @@ od2samba4 will *only* migrate groups listed in `groups.json`, so make sure to mi
 
 Groups can then be imported using
 ```bash
-ldbadd -H /var/lib/samba/private/sam.ldb <group ldif file> --relax
+ldbmodify -H /var/lib/samba/private/sam.ldb <group ldif file> --relax
 ```
 
 Additionally, a script that establishes **secondary** group membership and parent-children relationships between groups (nested groups) is created. This script has to be executed *after* users have been imported!
